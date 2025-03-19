@@ -2,6 +2,7 @@ import feedparser
 import requests
 import json
 import os
+from database import insert_feed, get_feed_id, insert_article, get_articles
 
 # get the url of the rss site to parse
 def get_url():
@@ -34,9 +35,9 @@ def parse_url(url):
         print(f"Error.Invalid rss feed or unable to retrieve data")
         return None
 
-    if 'title' not in resource.feed:
-        print("Error: Invalid RSS feed or unable to retrieve data.")
-        return None
+    # if 'title' not in resource.feed:
+    #     print("Error: Invalid RSS feed or unable to retrieve data.")
+    #     return None
 
     title = resource.feed.get('title', 'No title available')
     link = resource.feed.get('link', 'No link available')
@@ -44,25 +45,44 @@ def parse_url(url):
     generator = resource.feed.get('generator', 'No generator available')
     entries = resource.entries if 'entries' in resource else []
     
-    feed_data = {
-        "title": title,
-        "link": link,
-        "subtitle": subtitle,
-        "generator": generator,
-        "articles": [
-            {
-                "title": entry.get('title', 'No title'),
-                "link": entry.get('link', 'No link'),
-                "published": entry.get('published', 'No date'),
-                "author" : entry.get('author', 'unknown author'),
-                # summary = entry.get('content', 'No summary available')
-                "summary" : get_content(entry)
-            }
-            for entry in entries[:5]
-        ]
-    }
-    save_to_json(feed_data)
-    return feed_data
+    # check if feed exists, or insert it
+    feed_id = get_feed_id(link)
+    if not feed_id:
+        feed_id = insert_feed(title, link, subtitle, generator)
+
+    # store articles in the db
+    for entry in entries[:5]:
+        title = entry.get('title', 'No title')
+        link = entry.get('link', 'No link')
+        published = entry.get('published', 'No date')
+        author = entry.get('author', 'unknown author')
+        summary = get_content(entry)
+
+        insert_article(feed_id, title, link, published, author, summary)
+
+    # feed_data = {
+    #     "title": title,
+    #     "link": link,
+    #     "subtitle": subtitle,
+    #     "generator": generator,
+    #     "articles": [
+    #         {
+    #             "title": entry.get('title', 'No title'),
+    #             "link": entry.get('link', 'No link'),
+    #             "published": entry.get('published', 'No date'),
+    #             "author" : entry.get('author', 'unknown author'),
+    #             # summary = entry.get('content', 'No summary available')
+    #             "summary" : get_content(entry)
+    #         }
+            
+    #     ]
+    # }
+    # save_to_json(feed_data)
+    # return feed_data
+    # get saved articles:
+    articles = get_articles(feed_id)
+
+    return title, link, subtitle, generator, articles
 
 def get_content(entry):
     '''safely extract content from rss feed'''
@@ -101,7 +121,7 @@ if validate_url(url):
     parsed_data = parse_url(url)
 
 if parsed_data:
-    title, link, subtitle, generator, entries = parsed_data
+    title, link, subtitle, generator, articles = parsed_data
     print(f"Title: {title}")
     print(f"Link: {link}")
     print(f"Subtitle: {subtitle}")
@@ -117,7 +137,7 @@ if parsed_data:
         #     author = entry.get('author', 'unknown author')
         #     # summary = entry.get('content', 'No summary available')
         #     summary = get_content(entry)
-    for i, article in enumerate(parsed_data['articles'], start=1):
+    for i, article in enumerate(articles, start=1):
         print(f"\n{i}. {article['title']} ({article['link']})")
         print(f"   Published: {article['published']} | Author: {article['author']}")
         print(f"   Summary: {article['summary'][:200]}...")
