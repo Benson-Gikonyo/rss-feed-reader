@@ -132,6 +132,58 @@ def get_articles(feed_id):
 
     return [{"title": row[0], "link": row[1], "published": row[2], "author": row[3], "summary": row[4]} for row in articles]
 
+def list_feeds():
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT id, title, link FROM feeds 
+        ''', )
+        feeds = cursor.fetchall()
+        return [{"id": row[0], "title": row[1], "link": row[2]} for row in feeds]
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+    
+    finally:
+        conn.close()
+
+
+def delete_feed(feed_id):
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
+
+        cursor.execute('''DELETE FROM articles WHERE feed_id = ?''', (feed_id))
+        cursor.execute('''DELETE FROM feeds WHERE id = ?''', (feed_id))
+        
+        conn.commit()
+        print(f"feed with id: {feed_id} has been deleted")
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return []
+
+    finally:
+        conn.close()
+
+def prompt_delete_feed():
+    feeds = list_feeds
+    if not feeds:
+        print("No feeds available")
+        return
+    
+    print("Available feeds:")
+    for feed in feeds:
+        print(f"{feed['id']}: {feed['title']} {feed['link']}")
+
+    try:
+        feed_id = int(input("Enter the id of the feed you want to delete").strip())
+        delete_feed(feed_id)
+    except ValueError:
+        print("Invalid input")
+
 
 # def insert_feed(title, link, subtitle, generator):
 #     conn = sqlite3.connect("rss_feeds.db")
