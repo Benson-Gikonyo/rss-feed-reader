@@ -155,7 +155,7 @@ def delete_feed(feed_id):
     try:
 
          # Debugging print
-        print(f"🛠️ Debug: Received feed_id = {feed_id}")
+        print(f"Received feed_id = {feed_id}")
 
         conn = sqlite3.connect("rss_feeds.db")
         cursor = conn.cursor()
@@ -163,14 +163,14 @@ def delete_feed(feed_id):
         # Check if the feed_id exists before deleting
         cursor.execute("SELECT id FROM feeds WHERE id = ?", (feed_id,))
         if cursor.fetchone() is None:
-            print(f"❌ Error: Feed ID {feed_id} does not exist.")
+            print(f"Error: Feed ID {feed_id} does not exist.")
             conn.close()
             return
 
-        print(f"🛠️ Debug: Deleting articles for feed_id = {feed_id}")
+        print(f"Deleting articles for feed_id = {feed_id}")
         cursor.execute('''DELETE FROM articles WHERE feed_id = ?''', (feed_id,))
 
-        print(f"🛠️ Debug: Deleting feed with ID = {feed_id}")
+        print(f" Deleting feed with ID = {feed_id}")
         cursor.execute('''DELETE FROM feeds WHERE id = ?''', (feed_id,))
         
         conn.commit()
@@ -195,7 +195,7 @@ def prompt_delete_feed():
     try:
         feed_id_input = input("Enter the id of the feed you want to delete").strip()
         if not feed_id_input.isdigit():
-            print("❌ Error: Please enter a valid numerical ID.")
+            print("Error: Please enter a valid numerical ID.")
             return
 
         feed_id = int(feed_id_input)
