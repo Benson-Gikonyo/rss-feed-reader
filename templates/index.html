@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS Reader</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">RSS Feed Reader</h1>
+        
+        <!-- submission form -->
+        <form action="{{ url_for('add_feed') }}" method="post" class="mb-4">
+            <div class="input-group">
+                <input type="url" name="feed_url" class="form-control" placeholder="Enter rss feed url" required>
+                <button type="submit" class="btn btn-primary">Add feed</button>
+            </div>
+        </form>
+
+
+
+        <!-- display flash messages -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-info">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- flash messages with category -->
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+        <div class="container mt-4">
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- list feeds -->
+        <div class="list-group">
+            {% for feed in feeds %}
+
+                <a href="{{ url_for('view_feed', feed_id=feed.id) }}" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">{{feed.title}}</h5>
+                </a>
+
+                <!-- delete button -->
+                <form action="{{ url_for('delete_rss_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+
+                <!-- refresh button -->
+                <form action="{{ url_for('refresh_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
+                    <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
+                </form>
+
+            {% endfor %}
+
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (optional, needed for some interactive features) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+</body>
+</html>

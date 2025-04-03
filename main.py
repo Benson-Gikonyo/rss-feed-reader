@@ -27,7 +27,7 @@ def validate_url(url):
     
     return False
 
-def parse_url(url):
+def parse_url(url, is_refresh=False):
     '''parse url feed'''
     resource = feedparser.parse(url)
 
@@ -41,10 +41,15 @@ def parse_url(url):
     generator = resource.feed.get('generator', 'No generator available')
     entries = resource.entries if 'entries' in resource else []
     
-    # check if feed exists, or insert it
-    feed_id = get_feed_id(link)
-    if not feed_id:
-        feed_id = insert_feed(title, link, subtitle, generator)
+    # Only insert feed if it's NOT a refresh
+    if not is_refresh:
+        feed_id = get_feed_id(link)
+        if not feed_id:
+            feed_id = insert_feed(title, link, subtitle, generator)
+            print(f"Feed inserted with ID: {feed_id}")  # Debug statement
+    else:
+        feed_id = get_feed_id(link)  # Just get feed ID without inserting
+
 
     # store articles in the db
     for entry in entries[:5]:
@@ -54,41 +59,18 @@ def parse_url(url):
         author = entry.get('author', 'unknown author')
         summary = get_content(entry)
 
+        print(f"Inserting article: {title}, {link}")  # Debug statement
         insert_article(feed_id, title, link, published, author, summary)
 
-    print(f"Feed '{title}' successfully added.")
-    # articles = get_articles(feed_id)
-    # return title, link, subtitle, generator, articles
-    return feed_id
+    # print(f"Feed '{title}' successfully added.")
+    articles = get_articles(feed_id)
+    return title, link, subtitle, generator, articles
 
 def get_content(entry):
     '''safely extract content from rss feed'''
     if 'content' in entry and entry['content']:
         return entry['content'][0].get('value', 'no summary available')
     return entry.get('summary', 'No summary available')
-
-
-# def save_to_json(feed_data):
-#     '''Automatically save feed data to json file'''
-#     file_path = "savedfeeds.json"
-
-#     feeds = []
-# #  check for and load any existing data
-#     if os.path.exists(file_path):
-#         with open(file_path, "r", encoding="utf-8") as file:
-#             try:
-#                 feeds = json.load(file)
-#             except json.JSONDecodeError:
-#                 feeds = []
-            
-#     else:
-#         feeds = []
-
-#     feeds.append(feed_data)
-# # write new data to the file    
-#     with open(file_path, "w", encoding="utf-8") as file:
-#         json.dump(feeds, file, indent=4)
-#     print(f"\n✅ RSS feed saved to {file_path}\n")
 
 def view_articles():
     feeds = list_feeds()
@@ -157,30 +139,3 @@ def main_menu():
 
 if __name__ == "__main__":
     main_menu()
-
-
-# # main execution
-
-# url = get_url()
-# parsed_data = None
-
-# if validate_url(url):
-#     parsed_data = parse_url(url)
-
-# if parsed_data:
-#     title, link, subtitle, generator, articles = parsed_data
-#     print(f"Title: {title}")
-#     print(f"Link: {link}")
-#     print(f"Subtitle: {subtitle}")
-#     print(f"Generator: {generator}")
-
-#     print("\n === Latest articles ===")
-        
-#     for i, article in enumerate(articles, start=1):
-#         print(f"\n{i}. {article['title']} ({article['link']})")
-#         print(f"   Published: {article['published']} | Author: {article['author']}")
-#         print(f"   Summary: {article['summary'][:200]}...")
-           
-        
-# else:
-#     print("No articles found on this feed")

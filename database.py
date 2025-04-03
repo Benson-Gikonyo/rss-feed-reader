@@ -34,66 +34,78 @@ def setup_database():
     conn.close()
 
 def insert_feed(title, link, subtitle, generator):
+
     conn = sqlite3.connect("rss_feeds.db")
     cursor = conn.cursor()
 
-    cursor.execute('''
-        INSERT OR IGNORE INTO feeds(title, link, subtitle,generator)
-        VALUES(?, ?, ?, ?)
-    ''', (title, link, subtitle, generator))
+    try:
+        cursor.execute('''
+            INSERT OR IGNORE INTO feeds(title, link, subtitle,generator)
+            VALUES(?, ?, ?, ?)
+        ''', (title, link, subtitle, generator))
 
-    conn.commit()
-    cursor.execute('''SELECT id FROM feeds WHERE link = ?''', (link,))
-    feed = cursor.fetchone()
-    conn.close()
-    return feed[0] if feed else None 
-    if feed_id is None:
-        print("Error: Feed ID is None. Cannot insert article.")
-        return
+        conn.commit()
 
-    # # Convert values to strings to avoid type issues
-    # title = str(title) if title else "No title"
-    # link = str(link) if link else "No link"
-    # published = str(published) if published else "Unknown date"
-    # author = str(author) if author else "Unknown author"
-    # summary = str(summary) if summary else "No summary available"
+        # Retrieve the feed id to confirm it was inserted 
+        cursor.execute('''SELECT id FROM feeds WHERE link = ?''', (link,))
+        feed = cursor.fetchone()
 
-    # conn = sqlite3.connect("rss_feeds.db")
-    # cursor = conn.cursor()
-    
-    # try:
-    #     cursor.execute('''
-    #         INSERT OR IGNORE INTO articles (feed_id, title, link, published, author, summary)
-    #         VALUES (?, ?, ?, ?, ?, ?)
-    #     ''', (feed_id, title, link, published, author, summary))
-    #     conn.commit()
-    # except sqlite3.Error as e:
-    #     print(f"SQLite error: {e}")
-    # finally:
-    #     conn.close()
+        # Check if feed was inserted or if it's a duplicate
+        if feed:
+            print(f"Feed inserted with ID: {feed[0]}")
+            return feed[0]  # Return the feed ID
+        else:
+            print(f"Feed with link {link} already exists.")
+    except sqlite3.Error as e:
+        print(f"Error occurred during feed insertion: {e}")
+
+    finally:
+        conn.close()
+
+    return None 
+
+
 
 def get_feed_id(link):
-    conn = sqlite3.connect("rss_feeds.db")
-    cursor = conn.cursor()
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT id FROM feeds WHERE link = ?
-    ''', (link,))
-    feed = cursor.fetchone()
-    conn.close()
-    return feed[0] if feed else None
+        cursor.execute('''
+            SELECT id FROM feeds WHERE link = ?
+        ''', (link,))
+        feed = cursor.fetchone()
+
+        if feed:
+            print(f"DEBUG: Found existing feed_id -> {feed[0]} for link {link}")
+            return feed[0]
+        else:
+            print(f"DEBUG: No feed found for link {link}")
+
+        return None
+    except sqlite3.Error as e:
+        print(f"Database Error: {e}")
+        return None
+    finally:
+        conn.close()
+    # return feed[0]   feed else None
 
 def insert_article(feed_id, title, link, published, author, summary):
-    conn = sqlite3.connect("rss_feeds.db")
-    cursor = conn.cursor()
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        INSERT INTO articles (feed_id, title, link, published, author, summary)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (feed_id, title, link, published, author, summary))
+        cursor.execute('''
+            INSERT INTO articles (feed_id, title, link, published, author, summary)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (feed_id, title, link, published, author, summary))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+
+    except sqlite3.Error as e:
+        print(f"Database error while inserting article: {e}")
+    finally:
+        conn.close()
 
 # def get_articles(feed_id):
 #     conn = sqlite3.connect("rss_feeds.db")
@@ -115,13 +127,22 @@ def get_articles(feed_id):
 
     conn = sqlite3.connect("rss_feeds.db")
     cursor = conn.cursor()
-    
+
+    articles = []
+
     try:
+        print(f"DEBUG: Checking feed_id in articles table -> {feed_id}")
+    
         cursor.execute('''
             SELECT title, link, published, author, summary FROM articles WHERE feed_id = ?
-        ''', (feed_id,))  # Ensure feed_id is in a tuple format
+        ''', (feed_id,))  
         
-        articles = cursor.fetchall()
+        rows = cursor.fetchall()
+
+        articles = [{"title": row[0], "link": row[1], "published": row[2], "author": row[3], "summary": row[4]} for row in rows]
+
+        print(f"DEBUG: articles = {articles}")  # Check what type of data is inside
+
         
     except sqlite3.Error as e:
         print(f"SQLite error: {e}")
@@ -130,7 +151,7 @@ def get_articles(feed_id):
     finally:
         conn.close()
 
-    return [{"title": row[0], "link": row[1], "published": row[2], "author": row[3], "summary": row[4]} for row in articles]
+    return articles
 
 def list_feeds():
     try:
@@ -202,6 +223,35 @@ def prompt_delete_feed():
         delete_feed(feed_id)
     except ValueError:
         print("Invalid input")
+
+def get_feed_by_id(feed_id):
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title, link FROM feeds WHERE id = ?", (feed_id,))
+        feed = cursor.fetchone()
+        return {"id": feed[0], "title": feed[1], "link": feed[2]}
+
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return None
+    
+    finally:
+        conn.close()
+
+def delete_articles_by_feed (feed_id):
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM articles WHERE feed_id = ?", (feed_id,))
+        conn.commit()
+        
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    
+    finally:
+        conn.close()
+
 
 
 # def insert_feed(title, link, subtitle, generator):
