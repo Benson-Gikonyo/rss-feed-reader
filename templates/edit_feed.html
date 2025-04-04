@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Feed - {{ feed.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Edit Feed: {{ feed.title }}</h1>
+        
+        <form method="POST">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title</label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ feed.title }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="subtitle" class="form-label">Subtitle</label>
+                <input type="text" class="form-control" id="subtitle" name="subtitle" value="{{ feed.subtitle }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="generator" class="form-label">Generator</label>
+                <input type="text" class="form-control" id="generator" name="generator" value="{{ feed.generator }}" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Update Feed</button>
+        </form>
+        
+        <a href="/" class="btn btn-secondary mt-3">Back to Feeds</a>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

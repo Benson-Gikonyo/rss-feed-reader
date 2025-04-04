@@ -252,7 +252,23 @@ def delete_articles_by_feed (feed_id):
     finally:
         conn.close()
 
+def update_metadata(feed_id, title, subtitle, generator):
+    try:
+        conn = sqlite3.connect("rss_feeds.db")
+        cursor = conn.cursor()
 
+        cursor.execute('''
+            UPDATE feeds
+            SET title = ?, subtitle = ?, generator = ? WHERE id = ?''',
+            (title, subtitle, generator, feed_id))
+
+        conn.commit()
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+    
+    finally:
+        conn.close()
 
 # def insert_feed(title, link, subtitle, generator):
 #     conn = sqlite3.connect("rss_feeds.db")

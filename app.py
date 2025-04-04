@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, url_for, flash, redirect
 import feedparser
-from database import list_feeds, get_articles, get_feed_id, insert_feed, delete_feed, get_feed_by_id, insert_article, delete_articles_by_feed
+from database import list_feeds, get_articles, get_feed_id, insert_feed, delete_feed, get_feed_by_id, insert_article, delete_articles_by_feed,  update_metadata
 from main import parse_url
 from dotenv import load_dotenv
 import os
@@ -119,6 +119,38 @@ def refresh_feed(feed_id):
 
     flash("Feed refreshed successfully!", "Success")
     return redirect(url_for("home"))
+
+# edit feed metadata
+@app.route("/edit_feed/<int:feed_id>", methods=["GET", "POST"])
+def edit_feed(feed_id):
+    feed = get_feed_by_id(feed_id)
+
+    if not feed:
+        flash("Feed not found", "danger")
+        return redirect(url_for("home"))
+    
+    if request.method == "POST":
+
+        print(f"DEBUG: Received POST request for feed_id {feed_id}")
+
+        # Print form data to check if 'title' exists
+        print(f"DEBUG: Form Data: {request.form}")
+
+
+        title = request.form.get("title", "").strip()
+        subtitle = request.form.get("subtitle", "").strip()
+        generator = request.form.get("generator", "").strip()
+
+        if not title:  # Ensure title is provided
+            flash("Title cannot be empty!", "danger")
+            return redirect(url_for("edit_feed", feed_id=feed_id))
+
+        update_metadata(feed_id, title, subtitle, generator)
+
+        flash("Feed metadata updated successfully.", "success")
+        return redirect(url_for("home"))
+
+    return render_template("edit_feed.html", feed=feed)
 
 if __name__ == '__main__':
     app.run(debug=True)

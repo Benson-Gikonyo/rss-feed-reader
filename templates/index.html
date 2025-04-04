@@ -65,6 +65,8 @@
                     <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
                 </form>
 
+                <a href="{{ url_for('edit_feed', feed_id=feed.id) }}" class="btn btn-warning btn-sm">Edit</a>
+
             {% endfor %}
 
         </div>
