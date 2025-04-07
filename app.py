@@ -47,11 +47,11 @@ def add_feed():
     
     title, link, subtitle, generator, _ = parsed_data
 
-    print(f"DEBUG: Parsed feed link -> {link}")  # 🔍 Check if the extracted link is correct
+    # print(f"DEBUG: Parsed feed link -> {link}")  # Check if the extracted link is correct
 
-    existing_feed_id = get_feed_id(link)  # ✅ Check if the feed already exists
+    existing_feed_id = get_feed_id(link)  #  Check if the feed already exists
 
-    print(f"DEBUG: Existing feed_id for link '{link}' -> {existing_feed_id}")  # 🔍 Check what get_feed_id() returns
+    # print(f"DEBUG: Existing feed_id for link '{link}' -> {existing_feed_id}")  # 🔍Check what get_feed_id() returns
 
     if existing_feed_id:
         flash("This feed is already added.", "warning")
@@ -61,8 +61,6 @@ def add_feed():
 
     return redirect(url_for("home"))
 
-    flash("Feed added successfully ")
-    return redirect(url_for("home"))
 
 
 # view feed(articles)
@@ -123,15 +121,6 @@ def refresh_feed(feed_id):
         author = article["author"]
         summary = article["summary"]
 
-        # insert_article(
-        #     feed_id,
-        #     article["title"],
-        #     article["link"],
-        #     article["published"],
-        #     article["author"],
-        #     article["summary"],
-        # )
-        # title, link, published, author, summary = article  # Unpacking tuple
         insert_article(feed_id, title, link, published, author, summary)
 
     flash("Feed refreshed successfully!", "Success")
@@ -147,12 +136,9 @@ def edit_feed(feed_id):
         return redirect(url_for("home"))
     
     if request.method == "POST":
-
-        print(f"DEBUG: Received POST request for feed_id {feed_id}")
-
+        # print(f"DEBUG: Received POST request for feed_id {feed_id}")
         # Print form data to check if 'title' exists
-        print(f"DEBUG: Form Data: {request.form}")
-
+        # print(f"DEBUG: Form Data: {request.form}")
 
         title = request.form.get("title", "").strip()
         subtitle = request.form.get("subtitle", "").strip()

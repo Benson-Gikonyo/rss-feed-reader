@@ -107,18 +107,6 @@ def insert_article(feed_id, title, link, published, author, summary):
     finally:
         conn.close()
 
-# def get_articles(feed_id):
-#     conn = sqlite3.connect("rss_feeds.db")
-#     cursor = conn.cursor()
-
-#     cursor.execute('''
-#         SELECT title, link, published, author, summary FROM articles WHERE feed_id = ?
-#     ''', (feed_id))
-
-#     articles = cursor.fetchall()
-#     conn.close()
-
-#     return [{"title": row[0], "link": row[1], "published": row[2], "author": row[3], "summary": row[4]} for row in articles]
 
 def get_articles(feed_id):
     if feed_id is None:
@@ -131,7 +119,7 @@ def get_articles(feed_id):
     articles = []
 
     try:
-        print(f"DEBUG: Checking feed_id in articles table -> {feed_id}")
+        # print(f"DEBUG: Checking feed_id in articles table -> {feed_id}")
     
         cursor.execute('''
             SELECT title, link, published, author, summary FROM articles WHERE feed_id = ?
@@ -141,7 +129,7 @@ def get_articles(feed_id):
 
         articles = [{"title": row[0], "link": row[1], "published": row[2], "author": row[3], "summary": row[4]} for row in rows]
 
-        print(f"DEBUG: articles = {articles}")  # Check what type of data is inside
+        # print(f"DEBUG: articles = {articles}")  # Check what type of data is inside
 
         
     except sqlite3.Error as e:
@@ -176,8 +164,7 @@ def delete_feed(feed_id):
     try:
 
          # Debugging print
-        print(f"Received feed_id = {feed_id}")
-
+        # print(f"Received feed_id = {feed_id}")
         conn = sqlite3.connect("rss_feeds.db")
         cursor = conn.cursor()
 
@@ -188,14 +175,14 @@ def delete_feed(feed_id):
             conn.close()
             return
 
-        print(f"Deleting articles for feed_id = {feed_id}")
+        # print(f"Deleting articles for feed_id = {feed_id}")
         cursor.execute('''DELETE FROM articles WHERE feed_id = ?''', (feed_id,))
 
-        print(f" Deleting feed with ID = {feed_id}")
+        # print(f" Deleting feed with ID = {feed_id}")
         cursor.execute('''DELETE FROM feeds WHERE id = ?''', (feed_id,))
         
         conn.commit()
-        print(f"feed with id: {feed_id} has been deleted")
+        # print(f"feed with id: {feed_id} has been deleted")
     except sqlite3.Error as e:
         print(f"Database error: {e}")
         return []
@@ -270,11 +257,4 @@ def update_metadata(feed_id, title, subtitle, generator):
     finally:
         conn.close()
 
-# def insert_feed(title, link, subtitle, generator):
-#     conn = sqlite3.connect("rss_feeds.db")
-#     cursor = conn.cursor()
-
-#     conn.commit()
-#     conn.close()
-# run db setup
 setup_database()
