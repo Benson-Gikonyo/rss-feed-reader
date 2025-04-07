@@ -47,28 +47,42 @@
             {% endif %}
         {% endwith %}
 
+        <form method="GET" action="{{ url_for('home') }}" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="query" class="form-control" placeholder="Search feeds..." value="{{ request.args.get('query', '') }}">
+                <button class="btn btn-primary" type="submit">Search</button>
+            </div>
+        </form>
+
         <!-- list feeds -->
         <div class="list-group">
-            {% for feed in feeds %}
+            {% if feeds %}
+                {% for feed in feeds %}
 
-                <a href="{{ url_for('view_feed', feed_id=feed.id) }}" class="list-group-item list-group-item-action">
-                    <h5 class="mb-1">{{feed.title}}</h5>
-                </a>
+                    <a href="{{ url_for('view_feed', feed_id=feed.id) }}" class="list-group-item list-group-item-action">
+                        <h5 class="mb-1">{{feed.title}}</h5>
+                        <small>{{ feed.subtitle }}</small>
+                    </a>
 
-                <!-- delete button -->
-                <form action="{{ url_for('delete_rss_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
-                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                </form>
+                    <!-- delete button -->
+                    <form action="{{ url_for('delete_rss_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
 
-                <!-- refresh button -->
-                <form action="{{ url_for('refresh_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
-                    <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
-                </form>
+                    <!-- refresh button -->
+                    <form action="{{ url_for('refresh_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
+                        <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
+                    </form>
 
-                <a href="{{ url_for('edit_feed', feed_id=feed.id) }}" class="btn btn-warning btn-sm">Edit</a>
+                    <a href="{{ url_for('edit_feed', feed_id=feed.id) }}" class="btn btn-warning btn-sm">Edit</a>
 
-            {% endfor %}
+                {% endfor %}
+                {% else %}
+                    <div class="alert alert-warning text-center" role="alert">
+                        No feeds found matching your search.
+                    </div>
 
+            {% endif %}
         </div>
     </div>
 

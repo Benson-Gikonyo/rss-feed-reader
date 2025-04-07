@@ -15,8 +15,16 @@ app.secret_key = os.getenv("SECRET_KEY")
 # list feeds
 @app.route('/')
 def home():
+    # feeds = list_feeds()
+    # return render_template('index.html', feeds=feeds)
+
+    query = request.args.get("query", "").strip().lower()
     feeds = list_feeds()
-    return render_template('index.html', feeds=feeds)
+
+    if query:
+        feeds = [feed for feed in feeds if query in feed["title"].lower() or query in feed.get("subtitle", "").lower()]
+
+    return render_template("index.html", feeds=feeds)
 
 # add feed
 @app.route("/add_feed", methods=["POST"])
@@ -60,13 +68,22 @@ def add_feed():
 # view feed(articles)
 @app.route("/feed/<int:feed_id>")
 def view_feed(feed_id):
-    articles = get_articles(feed_id)
-    feed = next((f for f in list_feeds() if f['id'] == feed_id), None)
+    page = request.args.get("page", 1, type=int)
+    per_page = 5
+    offset = (page - 1) * per_page
 
+    feed = get_feed_by_id(feed_id)
     if not feed:
-        return "feed not found", 404
+        flash("Feed not found", "danger")
+        return redirect(url_for("home"))
 
-    return render_template('articles.html', feed=feed, articles=articles)
+    all_articles = get_articles(feed_id)
+    total_articles = len(all_articles)
+    articles = all_articles[offset:offset + per_page]
+
+    total_pages = (total_articles + per_page - 1) // per_page
+
+    return render_template("articles.html", feed=feed, articles=articles, page=page, total_pages=total_pages)
 
 # delete feed
 @app.route("/delete_rss_feed/<int:feed_id>", methods=["POST"])
