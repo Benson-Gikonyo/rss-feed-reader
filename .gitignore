@@ -1,2 +1,25 @@
-venv
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Virtual environments and secrets
+.venv/
+venv/
 .env
+.env.*
+
+# Runtime data
+instance/
+*.db
+*.sqlite
+*.sqlite3
+savedfeeds.json
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
