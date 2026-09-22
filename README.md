@@ -29,6 +29,11 @@ install the requirements:
 ```
 pip install -r requirements.txt
 ```
+create your local environment file and replace the placeholder secret:
+
+```
+cp .env.example .env
+```
 run the application:
 
 ```
@@ -40,5 +45,4 @@ python3 app.py
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
-
 
