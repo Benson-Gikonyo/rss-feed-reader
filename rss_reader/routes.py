@@ -1,16 +1,12 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+import sqlite3
 
-from database import (
-    replace_articles,
-    delete_feed,
-    get_articles,
-    get_feed_by_id,
-    get_feed_id,
-    save_feed,
-    list_feeds,
-    update_metadata,
-)
-from main import parse_url
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+
+from .database import (delete_feed, get_articles, get_feed_by_id, get_feed_id,
+                       save_feed, list_feeds, update_metadata)
+from .errors import FeedFetchError
+from .feed_service import fetch_feed
+from .url_safety import normalize_url
 
 
 web = Blueprint("web", __name__)
@@ -34,31 +30,21 @@ def home():
 
 @web.route("/add_feed", methods=["POST"])
 def add_feed():
-    feed_url = request.form.get("feed_url", "").strip()
-
-    if not feed_url.startswith(("http://", "https://")):
-        flash("Invalid URL. Please enter a valid RSS feed link.", "danger")
-        return redirect(url_for("web.home"))
-
-    if get_feed_id(feed_url):
-        flash("This feed is already added.", "warning")
-        return redirect(url_for("web.home"))
-
-    parsed_data = parse_url(feed_url)
-
-    if not parsed_data:
-        flash("Invalid RSS feed or unable to retrieve data.", "danger")
-        return redirect(url_for("web.home"))
-
-    title, link, subtitle, generator, articles = parsed_data
-    existing_feed_id = get_feed_id(link)
-
-    if existing_feed_id:
-        flash("This feed is already added.", "warning")
-    else:
-        save_feed(title, link, subtitle, generator, articles)
-        flash("Feed added successfully.", "success")
-
+    try:
+        source_url = normalize_url(request.form.get("feed_url", "").strip())
+        if get_feed_id(source_url) is not None:
+            flash("This feed is already added.", "warning")
+        else:
+            result = fetch_feed(source_url)
+            _, created = save_feed(result)
+            flash("Feed added successfully." if created else "This feed is already added.",
+                  "success" if created else "warning")
+    except FeedFetchError as error:
+        current_app.logger.warning("Feed add failed: category=%s reason=%s", type(error).__name__, str(error))
+        flash(str(error), "danger")
+    except sqlite3.Error:
+        current_app.logger.error("Feed add failed: database error")
+        flash("Unable to save the feed.", "danger")
     return redirect(url_for("web.home"))
 
 
@@ -106,19 +92,17 @@ def refresh_feed(feed_id):
         flash("Feed not found.", "danger")
         return redirect(url_for("web.home"))
 
-    parsed_data = parse_url(feed["link"], is_refresh=True)
-    if not parsed_data:
-        flash("Unable to refresh the feed.", "danger")
-        return redirect(url_for("web.home"))
-
-    _, _, _, _, articles = parsed_data
-    if not articles:
-        flash("No new articles found.", "warning")
-        return redirect(url_for("web.home"))
-
-    replace_articles(feed_id, articles)
-
-    flash("Feed refreshed successfully.", "success")
+    try:
+        result = fetch_feed(feed["source_url"], cached=feed)
+        save_feed(result, feed_id=feed_id)
+        flash("Feed is already up to date." if result.not_modified else "Feed refreshed successfully.",
+              "success")
+    except FeedFetchError as error:
+        current_app.logger.warning("Feed refresh failed: feed_id=%s category=%s reason=%s", feed_id, type(error).__name__, str(error))
+        flash(str(error), "danger")
+    except (sqlite3.Error, ValueError):
+        current_app.logger.error("Feed refresh persistence failed: feed_id=%s", feed_id)
+        flash("Unable to save the refresh. Existing articles were preserved.", "danger")
     return redirect(url_for("web.home"))
 
 

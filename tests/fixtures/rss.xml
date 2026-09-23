@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Example feed</title><link>https://example.org/</link><description>News</description>
+<item><guid isPermaLink="false">story-1</guid><title>First story</title><link>https://example.org/one</link><pubDate>Wed, 23 Sep 2026 10:00:00 GMT</pubDate><description>Story summary</description></item>
+<item><title>Second story</title><link>https://EXAMPLE.org:443/two#section</link><pubDate>invalid date</pubDate></item>
+</channel></rss>

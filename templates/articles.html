@@ -9,14 +9,14 @@
 <body>
     <div class="container mt-4">
         <h1 class="text-center mb-4">
-            <a href="{{feed.link}}" target="_blank">{{feed.title}}</a>
+            <a href="{{ feed.site_url or feed.source_url }}" target="_blank" rel="noopener noreferrer">{{feed.title}}</a>
         </h1>
 
         <div class="list-group">
             {% for article in articles %}
-            <a href="{{ article.link }}" class="list-group-item list-group-item-action">
+            <a href="{{ article.url or '#' }}" class="list-group-item list-group-item-action">
                 <h5 class="mb-1">{{ article.title }}</h5>
-                <small>By {{ article.author }} | {{ article.published }}</small>
+                <small>By {{ article.author or 'Unknown author' }} | {{ article.published_at or 'Date unavailable' }}</small>
                 <p class="mb-1">{{ article.summary[:200] | striptags}}...</p>
             </a>
             {% else %}

@@ -1,132 +1,47 @@
-import feedparser
-import requests
-# import json
-# import os
-from database import save_feed, get_articles, list_feeds, prompt_delete_feed
+"""Optional terminal interface using the same service as the Flask routes."""
+import sqlite3
 
-# get the url of the rss site to parse
-def get_url():
-    while True: 
-        url = input("Enter the url for the site").strip()
-        if url.startswith(("http://", "https://")):
-            return url
-        print("Error. Invalid url. Try again")
+from rss_reader import create_app
+from rss_reader.database import delete_feed, get_articles, get_feed_id, list_feeds, save_feed
+from rss_reader.errors import FeedFetchError
+from rss_reader.feed_service import fetch_feed
+from rss_reader.url_safety import normalize_url
 
-def validate_url(url):
-    '''validate url'''
-    # check if url is reachable before parsing
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            return True
-
-        print(f"Error.Unable to access url(Status code: {response.status_code})")
-
-    except requests.RequestException as e:
-        print(f"Error. unable to reach url - {e}")
-    
-    return False
-
-def parse_url(url, is_refresh=False):
-    '''Parse without writing; retain the subscription URL for refreshes.'''
-    resource = feedparser.parse(url)
-
-    if not resource.feed:
-        print(f"Error.Invalid rss feed or unable to retrieve data")
-        return None
-
-    title = resource.feed.get('title', 'No title available')
-    subtitle = resource.feed.get('subtitle', 'No subtitle available')
-    generator = resource.feed.get('generator', 'No generator available')
-    entries = resource.entries if 'entries' in resource else []
-    
-    articles = [
-        {
-            "title": entry.get("title", "No title"),
-            "link": entry.get("link", "No link"),
-            "published": entry.get("published", "No date"),
-            "author": entry.get("author", "unknown author"),
-            "summary": get_content(entry),
-        }
-        for entry in entries
-    ]
-    return title, url, subtitle, generator, articles
-
-def get_content(entry):
-    '''safely extract content from rss feed'''
-    if 'content' in entry and entry['content']:
-        return entry['content'][0].get('value', 'no summary available')
-    return entry.get('summary', 'No summary available')
-
-def view_articles():
-    feeds = list_feeds()
-    if not feeds:
-        print("no feeds available")
-        return
-
-    print("\n Available Feeds")
-    for feed in feeds:
-        print(f"{feed['id']}: {feed['title']}, ({feed['link']})")
-
-    try:
-        feed_id = feed_id = int(input("Enter the id of the feed to view the feed").strip())
-        articles = get_articles(feed_id)
-
-        if not articles:
-            print("No articles found for this feed")
-            return
-    
-        print("\n === Latest articles ===")
-        for i, article in enumerate(articles, start=1):
-            print(f"\n{i}. {article['title']} ({article['link']})")
-            print(f"   Published: {article['published']} | Author: {article['author']}")
-            print(f"   Summary: {article['summary'][:200]}...")
-        
-    except ValueError:
-        print("invalid input. Please enter a valid feed id")
 
 def main_menu():
-    '''rss reader menu'''
     while True:
-        print("\n RSS Reader Menu")
-        print("1 - Add a new RSS Feed")
-        print("2 - List available Feed")
-        print("3 - View articles from a Feed")
-        print("4 - Delete a feed")
-        print("5 - Exit")
+        print("\nRSS Reader: 1 Add | 2 List | 3 View articles | 4 Delete | 5 Exit")
+        choice = input("Choose an option: ").strip()
+        try:
+            if choice == "1":
+                url = normalize_url(input("Feed URL: ").strip())
+                if get_feed_id(url) is not None:
+                    print("This feed is already added.")
+                    continue
+                _, created = save_feed(fetch_feed(url))
+                print("Feed added." if created else "This feed is already added.")
+            elif choice == "2":
+                for feed in list_feeds():
+                    print(f"{feed['id']}: {feed['title']} ({feed['source_url']})")
+            elif choice == "3":
+                for article in get_articles(int(input("Feed ID: "))):
+                    print(f"{article['title']} ({article['url'] or 'No link'})")
+                    print(article["summary"][:200])
+            elif choice == "4":
+                deleted = delete_feed(int(input("Feed ID: ")))
+                print("Feed deleted." if deleted else "Feed not found.")
+            elif choice == "5":
+                break
+            else:
+                print("Choose a number from 1 to 5.")
+        except FeedFetchError as error:
+            print(str(error))
+        except ValueError:
+            print("Enter a valid numerical feed ID.")
+        except sqlite3.Error:
+            print("Database operation failed. Run init-db before using the reader.")
 
-        choice  = int(input("Choose an option: ").strip())
-
-        if choice == 1:
-            url = get_url()
-            if validate_url(url):
-                parsed = parse_url(url)
-                if parsed:
-                    save_feed(*parsed)
-            
-        elif choice == 2:
-            feeds = list_feeds()
-            if feeds:
-                print("\n Saved feeds:")
-                for feed in feeds:
-                    print(f"{feed['id']}: {feed['title']} ({feed['link']})")
-                else:
-                    print("No feeds available")
-        
-        elif choice == 3:
-            view_articles()
-        
-        elif choice == 4:
-            prompt_delete_feed()
-
-        elif choice == 5:
-            print("Exiting RSS Reader...")
-            break
-        else:
-            print("invalid option. please choose again")
 
 if __name__ == "__main__":
-    from rss_reader import create_app
-
     with create_app().app_context():
         main_menu()
