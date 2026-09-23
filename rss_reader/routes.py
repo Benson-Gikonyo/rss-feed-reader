@@ -1,13 +1,12 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from database import (
-    delete_articles_by_feed,
+    replace_articles,
     delete_feed,
     get_articles,
     get_feed_by_id,
     get_feed_id,
-    insert_article,
-    insert_feed,
+    save_feed,
     list_feeds,
     update_metadata,
 )
@@ -51,13 +50,13 @@ def add_feed():
         flash("Invalid RSS feed or unable to retrieve data.", "danger")
         return redirect(url_for("web.home"))
 
-    title, link, subtitle, generator, _ = parsed_data
+    title, link, subtitle, generator, articles = parsed_data
     existing_feed_id = get_feed_id(link)
 
     if existing_feed_id:
         flash("This feed is already added.", "warning")
     else:
-        insert_feed(title, link, subtitle, generator)
+        save_feed(title, link, subtitle, generator, articles)
         flash("Feed added successfully.", "success")
 
     return redirect(url_for("web.home"))
@@ -117,16 +116,7 @@ def refresh_feed(feed_id):
         flash("No new articles found.", "warning")
         return redirect(url_for("web.home"))
 
-    delete_articles_by_feed(feed_id)
-    for article in articles:
-        insert_article(
-            feed_id,
-            article["title"],
-            article["link"],
-            article["published"],
-            article["author"],
-            article["summary"],
-        )
+    replace_articles(feed_id, articles)
 
     flash("Feed refreshed successfully.", "success")
     return redirect(url_for("web.home"))

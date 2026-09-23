@@ -2,7 +2,7 @@ import feedparser
 import requests
 # import json
 # import os
-from database import insert_feed, get_feed_id, insert_article, get_articles, list_feeds, delete_feed, prompt_delete_feed
+from database import save_feed, get_articles, list_feeds, prompt_delete_feed
 
 # get the url of the rss site to parse
 def get_url():
@@ -28,7 +28,7 @@ def validate_url(url):
     return False
 
 def parse_url(url, is_refresh=False):
-    '''parse url feed'''
+    '''Parse without writing; retain the subscription URL for refreshes.'''
     resource = feedparser.parse(url)
 
     if not resource.feed:
@@ -36,35 +36,21 @@ def parse_url(url, is_refresh=False):
         return None
 
     title = resource.feed.get('title', 'No title available')
-    link = resource.feed.get('link', 'No link available')
     subtitle = resource.feed.get('subtitle', 'No subtitle available')
     generator = resource.feed.get('generator', 'No generator available')
     entries = resource.entries if 'entries' in resource else []
     
-    # Only insert feed if it's NOT a refresh
-    if not is_refresh:
-        feed_id = get_feed_id(link)
-        if not feed_id:
-            feed_id = insert_feed(title, link, subtitle, generator)
-            print(f"Feed inserted with ID: {feed_id}")  # Debug statement
-    else:
-        feed_id = get_feed_id(link)  # Just get feed ID without inserting
-
-
-    # store articles in the db
-    for entry in entries[:5]:
-        title = entry.get('title', 'No title')
-        link = entry.get('link', 'No link')
-        published = entry.get('published', 'No date')
-        author = entry.get('author', 'unknown author')
-        summary = get_content(entry)
-
-        print(f"Inserting article: {title}, {link}")  # Debug statement
-        insert_article(feed_id, title, link, published, author, summary)
-
-    # print(f"Feed '{title}' successfully added.")
-    articles = get_articles(feed_id)
-    return title, link, subtitle, generator, articles
+    articles = [
+        {
+            "title": entry.get("title", "No title"),
+            "link": entry.get("link", "No link"),
+            "published": entry.get("published", "No date"),
+            "author": entry.get("author", "unknown author"),
+            "summary": get_content(entry),
+        }
+        for entry in entries
+    ]
+    return title, url, subtitle, generator, articles
 
 def get_content(entry):
     '''safely extract content from rss feed'''
@@ -114,7 +100,9 @@ def main_menu():
         if choice == 1:
             url = get_url()
             if validate_url(url):
-                parse_url(url)
+                parsed = parse_url(url)
+                if parsed:
+                    save_feed(*parsed)
             
         elif choice == 2:
             feeds = list_feeds()
@@ -138,4 +126,7 @@ def main_menu():
             print("invalid option. please choose again")
 
 if __name__ == "__main__":
-    main_menu()
+    from rss_reader import create_app
+
+    with create_app().app_context():
+        main_menu()

@@ -1,260 +1,165 @@
+"""SQLite persistence shared by the web and terminal interfaces."""
 import sqlite3
 
+import click
+from flask import current_app, g
+from flask.cli import with_appcontext
+
+
+def get_db():
+    """Reuse one connection per application context."""
+    if "db" not in g:
+        connection = sqlite3.connect(current_app.config["DATABASE"])
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        g.db = connection
+    return g.db
+
+
+def close_db(error=None):
+    connection = g.pop("db", None)
+    if connection is not None:
+        connection.close()
+
+
 def setup_database():
-    
-    conn = sqlite3.connect("rss_feeds.db")
-    cursor = conn.cursor()
+    """Create tables without deleting existing data; repair the legacy FK."""
+    db = get_db()
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("""CREATE TABLE IF NOT EXISTS feeds (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT, link TEXT, subtitle TEXT, generator TEXT
+        )""")
+        db.execute("""CREATE TABLE IF NOT EXISTS articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            feed_id INTEGER,
+            title TEXT, link TEXT, published TEXT, author TEXT, summary TEXT,
+            FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE CASCADE
+        )""")
+        foreign_keys = db.execute("PRAGMA foreign_key_list(articles)").fetchall()
+        if not any(row[2] == "feeds" and row[6] == "CASCADE" for row in foreign_keys):
+            # Copy first: invalid legacy references fail and roll back the repair.
+            db.execute("""CREATE TABLE articles_repaired (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, feed_id INTEGER,
+                title TEXT, link TEXT, published TEXT, author TEXT, summary TEXT,
+                FOREIGN KEY(feed_id) REFERENCES feeds(id) ON DELETE CASCADE
+            )""")
+            db.execute("""INSERT INTO articles_repaired
+                SELECT id, feed_id, title, link, published, author, summary
+                FROM articles""")
+            db.execute("DROP TABLE articles")
+            db.execute("ALTER TABLE articles_repaired RENAME TO articles")
+        db.execute("CREATE INDEX IF NOT EXISTS articles_feed_id ON articles(feed_id)")
 
-    # create feeds
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS feeds(
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   title TEXT,
-                   link TEXT,
-                   subtitle TEXT,
-                   generator TEXT
-                   )
-    ''')
 
-    # create articles
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS articles(
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   feed_id INTEGER,
-                   title TEXT,
-                   link TEXT,
-                   published TEXT,
-                   author TEXT,
-                   summary TEXT,
-                   FOREIGN KEY(feed_id) REFERENCES feed(id)
-                   )
-    ''')
+@click.command("init-db")
+@with_appcontext
+def init_db_command():
+    """Initialize the configured database, preserving existing records."""
+    setup_database()
+    click.echo("Database initialized.")
 
-    conn.commit()
-    conn.close()
 
-def insert_feed(title, link, subtitle, generator):
-
-    conn = sqlite3.connect("rss_feeds.db")
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute('''
-            INSERT OR IGNORE INTO feeds(title, link, subtitle,generator)
-            VALUES(?, ?, ?, ?)
-        ''', (title, link, subtitle, generator))
-
-        conn.commit()
-
-        # Retrieve the feed id to confirm it was inserted 
-        cursor.execute('''SELECT id FROM feeds WHERE link = ?''', (link,))
-        feed = cursor.fetchone()
-
-        # Check if feed was inserted or if it's a duplicate
-        if feed:
-            print(f"Feed inserted with ID: {feed[0]}")
-            return feed[0]  # Return the feed ID
-        else:
-            print(f"Feed with link {link} already exists.")
-    except sqlite3.Error as e:
-        print(f"Error occurred during feed insertion: {e}")
-
-    finally:
-        conn.close()
-
-    return None 
-
+def init_app(app):
+    app.teardown_appcontext(close_db)
+    app.cli.add_command(init_db_command)
 
 
 def get_feed_id(link):
-    try:
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
+    row = get_db().execute("SELECT id FROM feeds WHERE link = ? ORDER BY id LIMIT 1", (link,)).fetchone()
+    return row["id"] if row else None
 
-        cursor.execute('''
-            SELECT id FROM feeds WHERE link = ?
-        ''', (link,))
-        feed = cursor.fetchone()
 
-        if feed:
-            print(f"DEBUG: Found existing feed_id -> {feed[0]} for link {link}")
-            return feed[0]
-        else:
-            print(f"DEBUG: No feed found for link {link}")
+def _insert_feed(db, title, link, subtitle, generator):
+    # Serialize lookup and insertion so concurrent writers cannot add duplicates.
+    row = db.execute("SELECT id FROM feeds WHERE link = ? ORDER BY id LIMIT 1", (link,)).fetchone()
+    if row:
+        return row["id"]
+    return db.execute(
+        "INSERT INTO feeds(title, link, subtitle, generator) VALUES (?, ?, ?, ?)",
+        (title, link, subtitle, generator),
+    ).lastrowid
 
-        return None
-    except sqlite3.Error as e:
-        print(f"Database Error: {e}")
-        return None
-    finally:
-        conn.close()
-    # return feed[0]   feed else None
+
+def insert_feed(title, link, subtitle, generator):
+    db = get_db()
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        return _insert_feed(db, title, link, subtitle, generator)
+
+
+def _insert_article(db, feed_id, title, link, published, author, summary):
+    db.execute("""INSERT INTO articles(feed_id, title, link, published, author, summary)
+        VALUES (?, ?, ?, ?, ?, ?)""", (feed_id, title, link, published, author, summary))
+
 
 def insert_article(feed_id, title, link, published, author, summary):
-    try:
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
+    db = get_db()
+    with db:
+        _insert_article(db, feed_id, title, link, published, author, summary)
 
-        cursor.execute('''
-            INSERT INTO articles (feed_id, title, link, published, author, summary)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (feed_id, title, link, published, author, summary))
 
-        conn.commit()
+def save_feed(title, link, subtitle, generator, articles):
+    """Save a new subscription and its articles together; return its ID."""
+    db = get_db()
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        existing = get_feed_id(link)
+        if existing is not None:
+            return existing
+        feed_id = _insert_feed(db, title, link, subtitle, generator)
+        for article in articles:
+            _insert_article(db, feed_id, **article)
+        return feed_id
 
-    except sqlite3.Error as e:
-        print(f"Database error while inserting article: {e}")
-    finally:
-        conn.close()
+
+def replace_articles(feed_id, articles):
+    db = get_db()
+    with db:
+        db.execute("DELETE FROM articles WHERE feed_id = ?", (feed_id,))
+        for article in articles:
+            _insert_article(db, feed_id, **article)
 
 
 def get_articles(feed_id):
-    if feed_id is None:
-        print("Error: feed_id is None. Cannot retrieve articles.")
-        return []
+    rows = get_db().execute("""SELECT title, link, published, author, summary
+        FROM articles WHERE feed_id = ? ORDER BY id""", (feed_id,))
+    return [dict(row) for row in rows]
 
-    conn = sqlite3.connect("rss_feeds.db")
-    cursor = conn.cursor()
-
-    articles = []
-
-    try:
-        # print(f"DEBUG: Checking feed_id in articles table -> {feed_id}")
-    
-        cursor.execute('''
-            SELECT title, link, published, author, summary FROM articles WHERE feed_id = ?
-        ''', (feed_id,))  
-        
-        rows = cursor.fetchall()
-
-        articles = [{"title": row[0], "link": row[1], "published": row[2], "author": row[3], "summary": row[4]} for row in rows]
-
-        # print(f"DEBUG: articles = {articles}")  # Check what type of data is inside
-
-        
-    except sqlite3.Error as e:
-        print(f"SQLite error: {e}")
-        articles = []
-    
-    finally:
-        conn.close()
-
-    return articles
 
 def list_feeds():
-    try:
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
+    return [dict(row) for row in get_db().execute("SELECT * FROM feeds ORDER BY id")]
 
-        cursor.execute('''
-            SELECT id, title, link FROM feeds 
-        ''', )
-        feeds = cursor.fetchall()
-        return [{"id": row[0], "title": row[1], "link": row[2]} for row in feeds]
 
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-        return []
-    
-    finally:
-        conn.close()
+def get_feed_by_id(feed_id):
+    row = get_db().execute("SELECT * FROM feeds WHERE id = ?", (feed_id,)).fetchone()
+    return dict(row) if row else None
 
 
 def delete_feed(feed_id):
-    try:
+    db = get_db()
+    with db:
+        return db.execute("DELETE FROM feeds WHERE id = ?", (feed_id,)).rowcount > 0
 
-         # Debugging print
-        # print(f"Received feed_id = {feed_id}")
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
 
-        # Check if the feed_id exists before deleting
-        cursor.execute("SELECT id FROM feeds WHERE id = ?", (feed_id,))
-        if cursor.fetchone() is None:
-            print(f"Error: Feed ID {feed_id} does not exist.")
-            conn.close()
-            return
+def delete_articles_by_feed(feed_id):
+    db = get_db()
+    with db:
+        db.execute("DELETE FROM articles WHERE feed_id = ?", (feed_id,))
 
-        # print(f"Deleting articles for feed_id = {feed_id}")
-        cursor.execute('''DELETE FROM articles WHERE feed_id = ?''', (feed_id,))
-
-        # print(f" Deleting feed with ID = {feed_id}")
-        cursor.execute('''DELETE FROM feeds WHERE id = ?''', (feed_id,))
-        
-        conn.commit()
-        # print(f"feed with id: {feed_id} has been deleted")
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-        return []
-
-    finally:
-        conn.close()
-
-def prompt_delete_feed():
-    feeds = list_feeds()
-    if not feeds:
-        print("No feeds available")
-        return
-    
-    print("Available feeds:")
-    for feed in feeds:
-        print(f"{feed['id']}: {feed['title']} {feed['link']}")
-
-    try:
-        feed_id_input = input("Enter the id of the feed you want to delete").strip()
-        if not feed_id_input.isdigit():
-            print("Error: Please enter a valid numerical ID.")
-            return
-
-        feed_id = int(feed_id_input)
-        delete_feed(feed_id)
-    except ValueError:
-        print("Invalid input")
-
-def get_feed_by_id(feed_id):
-    try:
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, title, link FROM feeds WHERE id = ?", (feed_id,))
-        feed = cursor.fetchone()
-        return {"id": feed[0], "title": feed[1], "link": feed[2]}
-
-    except Exception as e:
-        print(f"Database Error: {e}")
-        return None
-    
-    finally:
-        conn.close()
-
-def delete_articles_by_feed (feed_id):
-    try:
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM articles WHERE feed_id = ?", (feed_id,))
-        conn.commit()
-        
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-    
-    finally:
-        conn.close()
 
 def update_metadata(feed_id, title, subtitle, generator):
+    db = get_db()
+    with db:
+        db.execute("UPDATE feeds SET title = ?, subtitle = ?, generator = ? WHERE id = ?",
+                   (title, subtitle, generator, feed_id))
+
+
+def prompt_delete_feed():
+    for feed in list_feeds():
+        print(f"{feed['id']}: {feed['title']} {feed['link']}")
     try:
-        conn = sqlite3.connect("rss_feeds.db")
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            UPDATE feeds
-            SET title = ?, subtitle = ?, generator = ? WHERE id = ?''',
-            (title, subtitle, generator, feed_id))
-
-        conn.commit()
-
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
-    
-    finally:
-        conn.close()
-
-setup_database()
+        delete_feed(int(input("Enter the feed ID to delete: ").strip()))
+    except ValueError:
+        print("Please enter a valid numerical ID.")

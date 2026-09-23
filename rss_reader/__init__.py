@@ -33,6 +33,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 "SECRET_KEY is required. Add it to your environment or .env file."
             )
 
+    from database import init_app
+
+    init_app(app)
+
     from .routes import web
 
     app.register_blueprint(web)

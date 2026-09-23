@@ -34,7 +34,27 @@ create your local environment file and replace the placeholder secret:
 ```
 cp .env.example .env
 ```
-run the application:
+Initialize the database before the first run:
+
+```bash
+flask --app rss_reader:create_app init-db
+```
+
+The database is stored at `instance/rss_feeds.db`. Importing modules or creating
+an app does not initialize it. Connections use the app's `DATABASE` configuration
+and close when the application context ends. Tests can override this path.
+
+`init-db` preserves existing records and repairs the old articles foreign key to
+reference `feeds`, with cascading deletion. If legacy articles reference missing
+feeds, initialization fails and rolls back rather than deleting those records.
+
+To retain an old repository-root `rss_feeds.db`, stop the app, back up the file,
+and copy it to `instance/rss_feeds.db` before initialization. Do not overwrite an
+existing instance database. Legacy subscriptions retain their stored URLs; if one
+contains a website URL rather than the RSS URL, re-add the RSS URL to refresh it.
+New subscriptions store the submitted RSS URL.
+
+Run the application:
 
 ```
 python3 app.py
@@ -46,3 +66,11 @@ python3 app.py
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
 
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Tests use temporary databases and mocked feeds; they do not touch local feed data.
