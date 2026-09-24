@@ -1,5 +1,7 @@
 # Flask RSS/Atom Feed Reader
 
+[![CI tests](https://github.com/Benson-Gikonyo/rss-feed-reader/actions/workflows/tests.yml/badge.svg)](https://github.com/Benson-Gikonyo/rss-feed-reader/actions/workflows/tests.yml)
+
 A Flask RSS/Atom reader with persistent subscriptions, SSRF-aware feed fetching,
 transactional refreshes, search, and article pagination. Add, read, edit, refresh,
 and delete feeds through the web interface.
