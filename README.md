@@ -10,16 +10,20 @@ This project began with the [DevProjects terminal RSS-reader brief](https://www.
 and has evolved into a Flask web application. The interactive terminal menu has
 been removed; Flask's `init-db` command remains available for database setup.
 
-[Live demo](https://rss-feed-reader-zdnl.onrender.com/)
 
 ## Tech/framework used
 Built with Flask, SQLite, and Bootstrap.
 
 ## Screenshots and demo
 Screenshots of your app and/or a link to your live demo
-![Screenshot (45)](https://github.com/user-attachments/assets/0d6f751d-b0a3-40c5-a487-2f808993de6d)
-![Screenshot (46)](https://github.com/user-attachments/assets/db8c0b89-9288-485c-b087-284a402ea176)
-![Screenshot (47)](https://github.com/user-attachments/assets/754317b8-e449-407d-87e8-c689feee3713)
+[Live demo](https://rss-feed-reader-zdnl.onrender.com/)
+
+[Adding a Feed](<img width="1366" height="768" alt="Feed Added Successfully" src="https://github.com/user-attachments/assets/a5758561-f827-4821-a6a7-923e3988679c" />)
+[Viewing articles](<img width="1366" height="768" alt="Viewing Articles" src="https://github.com/user-attachments/assets/83c9907e-88ad-4945-8084-ed8952b9a14e" />)
+[Editing a Feed](<img width="1366" height="768" alt="Editing a feed" src="https://github.com/user-attachments/assets/78e5dcf6-1fd3-4c64-a9aa-827acabeb540" />)
+[Deleting a Feed](<img width="1366" height="768" alt="Deleting a Feed" src="https://github.com/user-attachments/assets/730729b7-bec9-4dc6-8e24-155f5d65bde2" />)
+[Successful Deletion](<img width="1366" height="768" alt="Successful deletion" src="https://github.com/user-attachments/assets/a632dd89-11ba-4745-98ee-ed90a7cc6496" />)
+[Refreshing a Feed](<img width="1366" height="768" alt="Refreshing a Feed" src="https://github.com/user-attachments/assets/5ff1e34a-4e00-4923-819a-a903cef61387" />)
 
 
 ## Installation
