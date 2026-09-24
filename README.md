@@ -106,6 +106,17 @@ To run one area while developing, for example:
 python -m unittest discover -s tests -p 'test_feed_service.py' -v
 ```
 
+## Continuous integration
+
+The GitHub Actions workflow in `.github/workflows/tests.yml` runs on every push
+and pull request. It uses Python 3.12 on Ubuntu, installs `requirements.txt`, and
+runs the same `unittest` command shown above. Pip downloads are cached to speed
+up later runs, and the job has a ten-minute timeout.
+
+Results appear in the repository's **Actions** tab and in pull request checks.
+The tests need no repository secrets, `.env` file, or pre-existing database.
+The workflow starts running after this file is committed and pushed to GitHub.
+
 ## Fetching, parsing, and refresh behavior
 
 Flask routes use `rss_reader/feed_service.py` for fetching and parsing feeds. Parsing receives downloaded bytes and returns
