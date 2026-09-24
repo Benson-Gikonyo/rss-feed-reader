@@ -15,15 +15,20 @@ been removed; Flask's `init-db` command remains available for database setup.
 Built with Flask, SQLite, and Bootstrap.
 
 ## Screenshots and demo
-Screenshots of your app and/or a link to your live demo
+
 [Live demo](https://rss-feed-reader-zdnl.onrender.com/)
 
-[Adding a Feed](<img width="1366" height="768" alt="Feed Added Successfully" src="https://github.com/user-attachments/assets/a5758561-f827-4821-a6a7-923e3988679c" />)
-[Viewing articles](<img width="1366" height="768" alt="Viewing Articles" src="https://github.com/user-attachments/assets/83c9907e-88ad-4945-8084-ed8952b9a14e" />)
-[Editing a Feed](<img width="1366" height="768" alt="Editing a feed" src="https://github.com/user-attachments/assets/78e5dcf6-1fd3-4c64-a9aa-827acabeb540" />)
-[Deleting a Feed](<img width="1366" height="768" alt="Deleting a Feed" src="https://github.com/user-attachments/assets/730729b7-bec9-4dc6-8e24-155f5d65bde2" />)
-[Successful Deletion](<img width="1366" height="768" alt="Successful deletion" src="https://github.com/user-attachments/assets/a632dd89-11ba-4745-98ee-ed90a7cc6496" />)
-[Refreshing a Feed](<img width="1366" height="768" alt="Refreshing a Feed" src="https://github.com/user-attachments/assets/5ff1e34a-4e00-4923-819a-a903cef61387" />)
+Adding a Feed: <img width="1366" height="768" alt="Feed Added Successfully" src="https://github.com/user-attachments/assets/a5758561-f827-4821-a6a7-923e3988679c" />
+
+Viewing articles: <img width="1366" height="768" alt="Viewing Articles" src="https://github.com/user-attachments/assets/83c9907e-88ad-4945-8084-ed8952b9a14e" />
+
+Editing a Feed: <img width="1366" height="768" alt="Editing a feed" src="https://github.com/user-attachments/assets/78e5dcf6-1fd3-4c64-a9aa-827acabeb540" />
+
+Deleting a Feed: <img width="1366" height="768" alt="Deleting a Feed" src="https://github.com/user-attachments/assets/730729b7-bec9-4dc6-8e24-155f5d65bde2" />
+
+Successful Deletion: <img width="1366" height="768" alt="Successful deletion" src="https://github.com/user-attachments/assets/a632dd89-11ba-4745-98ee-ed90a7cc6496" />
+
+Refreshing a Feed: <img width="1366" height="768" alt="Refreshing a Feed" src="https://github.com/user-attachments/assets/5ff1e34a-4e00-4923-819a-a903cef61387" />
 
 
 ## Installation
