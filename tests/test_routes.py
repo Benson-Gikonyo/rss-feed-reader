@@ -84,13 +84,6 @@ class RouteTests(unittest.TestCase):
                 self.assertNotIn(b"secret", result.data)
             fetch.assert_not_called()
 
-    def test_terminal_uses_shared_fetcher(self):
-        from main import main_menu
-        with self.app.app_context(), patch("builtins.input", side_effect=["1", SOURCE, "5"]), patch("builtins.print"), patch("main.fetch_feed", return_value=RESULT) as fetch:
-            main_menu()
-            fetch.assert_called_once_with(SOURCE)
-            self.assertIsNotNone(db.get_feed_id(SOURCE))
-
     def seed(self, count=1):
         feed = Feed("Feed", articles=[Article(f"id-{i}", f"Article {i:02}", published_at="2026-09-24T10:00:00+00:00") for i in range(count)])
         with self.app.app_context():

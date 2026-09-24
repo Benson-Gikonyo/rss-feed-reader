@@ -1,10 +1,15 @@
-# DevProjects - RSS feed reader in terminal
+# Flask RSS/Atom Feed Reader
 
-This is an open source project from [DevProjects](http://www.codementor.io/projects). Feedback and questions are welcome!
-Find the project requirements here: [RSS feed reader in terminal](https://www.codementor.io/projects/tool/rss-feed-reader-in-terminal-atx32jp82q)
+A Flask RSS/Atom reader with persistent subscriptions, SSRF-aware feed fetching,
+transactional refreshes, search, and article pagination. Add, read, edit, refresh,
+and delete feeds through the web interface.
+
+This project began with the [DevProjects terminal RSS-reader brief](https://www.codementor.io/projects/tool/rss-feed-reader-in-terminal-atx32jp82q)
+and has evolved into a Flask web application. The interactive terminal menu has
+been removed; Flask's `init-db` command remains available for database setup.
 
 ## Tech/framework used
-Built with Flask, Sqlite and  bootstrap
+Built with Flask, SQLite, and Bootstrap.
 
 ## Screenshots and demo
 Screenshots of your app and/or a link to your live demo
@@ -64,6 +69,8 @@ Run the application:
 python3 app.py
 ```
 
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+
 
 
 
@@ -81,8 +88,7 @@ Tests use temporary databases and mocked feeds; they do not touch local feed dat
 
 ## Fetching, parsing, and refresh behavior
 
-Both Flask routes and the optional terminal menu (`python main.py`) use
-`rss_reader/feed_service.py`. Parsing receives downloaded bytes and returns
+Flask routes use `rss_reader/feed_service.py` for fetching and parsing feeds. Parsing receives downloaded bytes and returns
 normalized `Feed`, `Article`, and `FetchResult` values. It never writes to SQLite.
 
 - `url_safety.py` accepts HTTP/HTTPS URLs without credentials, normalizes hosts
@@ -130,7 +136,7 @@ settings can also be overridden through `create_app` for tests.
 
 Tests include small RSS/Atom fixtures, mocked HTTP adapters, concurrent SQLite
 writers, non-destructive initialization, atomic rollback, safe URL handling, redirect
-limits, timeouts, size limits, conditional requests, and web/terminal integration.
+limits, timeouts, size limits, conditional requests, and web interface integration.
 They make no live network requests.
 
 ## Forms, pages, and readiness

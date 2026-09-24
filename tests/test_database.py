@@ -31,7 +31,7 @@ class DatabaseTests(unittest.TestCase):
         self.assertFalse(self.path.exists())
         root = str(Path(__file__).resolve().parents[1])
         subprocess.run([sys.executable, "-c",
-                        f"import sys; sys.path.insert(0, {root!r}); import rss_reader.database; import main"],
+                        f"import sys; sys.path.insert(0, {root!r}); import rss_reader.database; import rss_reader.routes; import rss_reader.feed_service"],
                        cwd=self.temp.name, check=True)
         self.assertEqual(list(Path(self.temp.name).iterdir()), [])
         self.initialize()
