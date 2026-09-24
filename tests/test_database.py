@@ -10,6 +10,7 @@ from pathlib import Path
 
 from rss_reader import create_app, database as db
 from rss_reader.models import Article, Feed, FetchResult
+from rss_reader.feed_service import parse_feed
 
 SOURCE = "https://example.org/rss"
 ARTICLE = Article("story-1", "Article", "https://example.org/article", summary="Summary")
@@ -159,6 +160,34 @@ class DatabaseTests(unittest.TestCase):
         self.assertIn("does not replace", result.output)
         with sqlite3.connect(self.path) as connection:
             self.assertEqual(list(connection.iterdump()), before)
+
+
+    def test_parsed_duplicate_entries_and_missing_metadata_survive_refresh(self):
+        self.initialize()
+        body = b'<rss version="2.0"><channel><title>Minimal</title><item><guid isPermaLink="false">same</guid><title>First</title></item><item><guid isPermaLink="false">same</guid><title>Updated</title></item><item><description>No identity</description></item></channel></rss>'
+        parsed = parse_feed(body, SOURCE)
+        result = FetchResult(SOURCE, SOURCE, parsed)
+        with self.app.app_context():
+            feed_id, _ = db.save_feed(result)
+            before = db.get_articles(feed_id)
+            self.assertEqual(len(before), 2)
+            self.assertEqual(next(a for a in before if a["guid"] == "same")["title"], "Updated")
+            for article in before:
+                self.assertIsNone(article["published_at"])
+                self.assertIsNone(article["author"])
+                self.assertIsNone(article["url"])
+            db.save_feed(result, feed_id=feed_id)
+            self.assertEqual(db.get_articles(feed_id), before)
+
+    def test_same_article_guid_is_allowed_in_different_feeds(self):
+        self.initialize()
+        with self.app.app_context():
+            first, _ = db.save_feed(RESULT)
+            second, _ = db.save_feed(replace(RESULT, source_url="https://other.org/rss"))
+            self.assertEqual(len(db.get_articles(first)), 1)
+            self.assertEqual(len(db.get_articles(second)), 1)
+            db.delete_feed(first)
+            self.assertEqual(len(db.get_articles(second)), 1)
 
 
 if __name__ == "__main__":

@@ -204,3 +204,56 @@ class RouteTests(unittest.TestCase):
         with sqlite3.connect(missing) as connection:
             connection.execute("PRAGMA user_version = 2")
         self.assertEqual(self.client.get("/healthz").status_code, 503)
+
+    def test_search_matches_title_and_subtitle_case_insensitively(self):
+        with self.app.app_context():
+            db.save_feed(FetchResult(SOURCE, SOURCE, Feed("Science Daily")))
+            db.save_feed(FetchResult("https://other.org/rss", "https://other.org/rss", Feed("Other news", subtitle="Science discoveries")))
+        response = self.client.get("/", query_string={"query": "  SCIENCE  "})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Science Daily", response.data)
+        self.assertIn(b"Other news", response.data)
+        response = self.client.get("/", query_string={"query": "no-match"})
+        self.assertNotIn(b"Science Daily", response.data)
+        self.assertNotIn(b"Other news", response.data)
+
+    def test_article_page_escapes_markup_and_handles_missing_metadata(self):
+        payload = '<script>alert("unsafe")</script>'
+        with self.app.app_context():
+            feed_id, _ = db.save_feed(FetchResult(SOURCE, SOURCE, Feed(payload, articles=[
+                Article("one", payload, summary='<img src=x onerror="alert(1)">Summary')
+            ])))
+        for path in ("/", f"/feed/{feed_id}"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn(payload.encode(), response.data)
+            self.assertIn(b"&lt;script&gt;", response.data)
+        self.assertIn(b"Unknown author", response.data)
+        self.assertIn(b"Date unavailable", response.data)
+        self.assertIn(b"Summary", response.data)
+        self.assertNotIn(b"onerror", response.data)
+
+    def test_refresh_write_failure_rolls_back_and_reports_preserved_articles(self):
+        feed_id = self.seed()
+        with self.app.app_context():
+            before = db.get_feed_by_id(feed_id)
+            articles = db.get_articles(feed_id)
+        invalid = FetchResult(SOURCE, SOURCE, Feed("Changed", articles=[
+            Article("id-0", "Changed"), Article("invalid", None)
+        ]), etag='"new"')
+        with patch("rss_reader.routes.fetch_feed", return_value=invalid), self.assertLogs(self.app.logger, level="ERROR"):
+            response = self.post(f"/refresh_feed/{feed_id}", follow_redirects=True)
+        self.assertIn(b"Existing articles were preserved", response.data)
+        self.assertNotIn(b"Feed refreshed successfully", response.data)
+        with self.app.app_context():
+            self.assertEqual(db.get_feed_by_id(feed_id), before)
+            self.assertEqual(db.get_articles(feed_id), articles)
+
+    def test_get_cannot_add_or_refresh(self):
+        feed_id = self.seed()
+        with patch("rss_reader.routes.fetch_feed") as fetch:
+            for path in ("/add_feed", f"/refresh_feed/{feed_id}"):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 405)
+                self.assertIn("POST", response.headers["Allow"])
+            fetch.assert_not_called()

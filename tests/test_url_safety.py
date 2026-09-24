@@ -46,3 +46,9 @@ class URLSafetyTests(unittest.TestCase):
         with patch("rss_reader.url_safety.socket.getaddrinfo", side_effect=socket.gaierror("private detail")):
             with self.assertRaisesRegex(FeedFetchError, "Unable to resolve"):
                 validate_url("https://example.org/rss")
+
+    def test_empty_and_invalid_dns_answers_fail_closed(self):
+        for answers in ([], addresses("not-an-ip")):
+            with self.subTest(answers=answers), patch("rss_reader.url_safety.socket.getaddrinfo", return_value=answers):
+                with self.assertRaises(FeedFetchError):
+                    validate_url("https://example.org/rss")

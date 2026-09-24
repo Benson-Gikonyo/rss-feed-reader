@@ -84,7 +84,27 @@ Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
 python -m unittest discover -s tests -v
 ```
 
-Tests use temporary databases and mocked feeds; they do not touch local feed data.
+The suite uses Python's built-in `unittest`; no additional test dependencies are
+needed after installing `requirements.txt`. Tests use temporary databases and
+mocked HTTP/DNS responses; they do not touch local feed data or fetch live feeds.
+Startup-configuration tests isolate environment variables and disable `.env`
+loading so they can verify the missing-secret behavior reliably.
+
+Coverage includes:
+
+- Startup secrets, environment overrides, and invalid fetch limits.
+- Public/private IPv4 and IPv6 validation, mixed or invalid DNS answers,
+  redirects, timeouts, conditional requests, and download-size boundaries.
+- RSS/Atom parsing, missing metadata, duplicate entries, and repeat refreshes.
+- SQLite uniqueness, concurrent inserts, cascading deletion, and transaction rollback.
+- Web actions, CSRF, search, pagination, escaped content, safe failure messages,
+  and database readiness.
+
+To run one area while developing, for example:
+
+```bash
+python -m unittest discover -s tests -p 'test_feed_service.py' -v
+```
 
 ## Fetching, parsing, and refresh behavior
 

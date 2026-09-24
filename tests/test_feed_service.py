@@ -152,11 +152,11 @@ class FeedServiceTests(unittest.TestCase):
         self.assertEqual(dns.call_count, 2)
         self.assertEqual(len(adapter.calls), 1)
 
-    def test_html_labelled_feed_accepted_but_html_body_rejected(self):
+    def test_html_labelled_feed_is_accepted(self):
         adapter, _ = self.session(response((FIXTURES / "empty.xml").read_bytes(), headers={"Content-Type": "text/html"}))
         self.assertEqual(fetch_feed(SOURCE).feed.title, "Empty feed")
 
-    def test_redirect_limit_and_loop(self):
+    def test_redirect_limit(self):
         adapter, _ = self.session(*[response(status=302, headers={"Location": f"/hop{i}"}) for i in range(4)])
         with self.assertRaises(FeedFetchError):
             fetch_feed(SOURCE)
@@ -236,3 +236,64 @@ class FeedServiceTests(unittest.TestCase):
         self.session(response(status=304))
         with self.assertRaises(FeedFetchError):
             fetch_feed(SOURCE)
+
+    def test_private_initial_destination_never_reaches_transport(self):
+        adapter, _ = self.session()
+        private = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 443))]
+        with patch("rss_reader.url_safety.socket.getaddrinfo", return_value=private):
+            with self.assertRaises(UnsafeFeedURLError):
+                fetch_feed(SOURCE)
+        self.assertEqual(adapter.calls, [])
+
+    def test_all_supported_redirect_statuses(self):
+        for status in (301, 302, 303, 307, 308):
+            with self.subTest(status=status):
+                redirect = response(status=status, headers={"Location": "/final"})
+                adapter, _ = self.session(redirect, response((FIXTURES / "empty.xml").read_bytes()))
+                self.assertEqual(fetch_feed(SOURCE).fetch_url, "https://example.org/final")
+                self.assertEqual(len(adapter.calls), 2)
+                self.assertTrue(redirect.raw.closed)
+                self.assertEqual(redirect.raw.reads, 0)
+
+    def test_missing_or_invalid_redirect_location(self):
+        for location in (None, "http://[invalid", "file:///etc/passwd"):
+            with self.subTest(location=location):
+                item = response(status=302, headers={} if location is None else {"Location": location})
+                adapter, _ = self.session(item)
+                with self.assertRaises(FeedFetchError):
+                    fetch_feed(SOURCE)
+                self.assertEqual(len(adapter.calls), 1)
+                self.assertTrue(item.raw.closed)
+
+    def test_zero_redirect_budget_allows_direct_feed_only(self):
+        self.app.config["MAX_FEED_REDIRECTS"] = 0
+        self.session(response((FIXTURES / "empty.xml").read_bytes()))
+        self.assertEqual(fetch_feed(SOURCE).feed.title, "Empty feed")
+        adapter, _ = self.session(response(status=302, headers={"Location": "/other"}))
+        with self.assertRaises(FeedFetchError):
+            fetch_feed(SOURCE)
+        self.assertEqual(len(adapter.calls), 1)
+
+    def test_exact_size_limit_accepts_valid_feed(self):
+        body = (FIXTURES / "empty.xml").read_bytes()
+        self.app.config["MAX_FEED_BYTES"] = len(body)
+        self.session(response(body, headers={"Content-Length": str(len(body))}))
+        self.assertEqual(fetch_feed(SOURCE).feed.title, "Empty feed")
+
+    def test_stream_limit_ignores_untrustworthy_content_length(self):
+        self.app.config["MAX_FEED_BYTES"] = 9000
+        for length in ("1", "invalid", "-1"):
+            with self.subTest(length=length):
+                item = response(b'x' * 10000, headers={"Content-Length": length})
+                self.session(item)
+                with self.assertRaisesRegex(FeedFetchError, "size limit"):
+                    fetch_feed(SOURCE)
+                self.assertGreaterEqual(item.raw.reads, 2)
+                self.assertTrue(item.raw.closed)
+
+    def test_html_page_is_rejected_by_fetch_and_closed(self):
+        item = response(b'<html><title>Not a feed</title></html>', headers={"Content-Type": "text/html"})
+        self.session(item)
+        with self.assertRaises(InvalidFeedError):
+            fetch_feed(SOURCE)
+        self.assertTrue(item.raw.closed)
