@@ -10,6 +10,8 @@ This project began with the [DevProjects terminal RSS-reader brief](https://www.
 and has evolved into a Flask web application. The interactive terminal menu has
 been removed; Flask's `init-db` command remains available for database setup.
 
+[Live demo](https://rss-feed-reader-zdnl.onrender.com/)
+
 ## Tech/framework used
 Built with Flask, SQLite, and Bootstrap.
 
