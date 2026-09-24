@@ -1,58 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ feed.title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-4">
-        <h1 class="text-center mb-4">
-            <a href="{{ feed.site_url or feed.source_url }}" target="_blank" rel="noopener noreferrer">{{feed.title}}</a>
-        </h1>
-
-        <div class="list-group">
-            {% for article in articles %}
-            <a href="{{ article.url or '#' }}" class="list-group-item list-group-item-action">
-                <h5 class="mb-1">{{ article.title }}</h5>
-                <small>By {{ article.author or 'Unknown author' }} | {{ article.published_at or 'Date unavailable' }}</small>
-                <p class="mb-1">{{ article.summary[:200] | striptags}}...</p>
-            </a>
-            {% else %}
-            <p class="text-center">No articles available.</p>
-            {% endfor %}
-
-        </div>
-        <!-- Pagination controls -->
-        <nav aria-label="Page navigation" class="mt-4">
-            <ul class="pagination justify-content-center">
-            {% if page > 1 %}
-                <li class="page-item">
-                <a class="page-link" href="{{ url_for('web.view_feed', feed_id=feed.id, page=page-1) }}">Previous</a>
-                </li>
-            {% endif %}
-        
-            {% for p in range(1, total_pages + 1) %}
-                <li class="page-item {% if p == page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('web.view_feed', feed_id=feed.id, page=p) }}">{{ p }}</a>
-                </li>
-            {% endfor %}
-        
-            {% if page < total_pages %}
-                <li class="page-item">
-                <a class="page-link" href="{{ url_for('web.view_feed', feed_id=feed.id, page=page+1) }}">Next</a>
-                </li>
-            {% endif %}
-            </ul>
-        </nav>
-  
-
-
-        <a href="/" class="btn btn-secondary mt-3">Back to feeds</a>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-</body>
-</html>
+{% extends 'base.html' %}
+{% block title %}{{ feed.title }} · RSS Feed Reader{% endblock %}
+{% block content %}
+<h1>{{ feed.title }}</h1>
+<p><a href="{{ feed.site_url or feed.source_url }}" target="_blank" rel="noopener noreferrer">Visit publisher (opens in a new tab)</a></p>
+{% if articles %}
+<p class="text-body-secondary">{{ total_articles }} saved article{{ '' if total_articles == 1 else 's' }}</p>
+<div class="list-group mb-4">
+    {% for article in articles %}
+    <article class="list-group-item py-3">
+        <h2 class="h5">{% if article.url %}<a href="{{ article.url }}">{{ article.title }}</a>{% else %}{{ article.title }}{% endif %}</h2>
+        <p class="small text-body-secondary">By {{ article.author or 'Unknown author' }} | {{ article.published_at or 'Date unavailable' }}</p>
+        {% set summary = article.summary | striptags %}
+        {% if summary %}<p class="mb-0">{{ summary[:200] }}{% if summary|length > 200 %}…{% endif %}</p>{% endif %}
+    </article>
+    {% endfor %}
+</div>
+<nav class="d-flex flex-wrap gap-3 align-items-center mb-4" aria-label="Article pages">
+    {% if page > 1 %}<a class="btn btn-outline-primary" rel="prev" href="{{ url_for('web.view_feed', feed_id=feed.id, page=page-1) }}">Previous</a>{% endif %}
+    <span aria-current="page">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}<a class="btn btn-outline-primary" rel="next" href="{{ url_for('web.view_feed', feed_id=feed.id, page=page+1) }}">Next</a>{% endif %}
+</nav>
+{% else %}
+<p role="status">This feed has no articles yet. Refresh it later to check for new posts.</p>
+{% endif %}
+<a class="btn btn-secondary" href="{{ url_for('web.home') }}">Back to feeds</a>
+{% endblock %}

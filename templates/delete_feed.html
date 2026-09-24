@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Delete feed · RSS Feed Reader{% endblock %}
+{% block content %}
+<h1>Delete this feed?</h1>
+<p><strong>{{ feed.title }}</strong> and all its saved articles will be deleted. This cannot be undone.</p>
+<form method="post" action="{{ url_for('web.delete_rss_feed', feed_id=feed.id) }}" data-busy-label="Deleting…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <a href="{{ url_for('web.home') }}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-danger">Delete feed and articles</button>
+    <p class="small mt-2" role="status" data-submit-status></p>
+</form>
+{% endblock %}

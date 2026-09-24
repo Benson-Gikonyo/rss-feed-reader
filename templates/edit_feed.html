@@ -1,34 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Feed - {{ feed.title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-4">
-        <h1>Edit Feed: {{ feed.title }}</h1>
-        
-        <form method="POST">
-            <div class="mb-3">
-                <label for="title" class="form-label">Title</label>
-                <input type="text" class="form-control" id="title" name="title" value="{{ feed.title }}" required>
-            </div>
-            <div class="mb-3">
-                <label for="subtitle" class="form-label">Subtitle</label>
-                <input type="text" class="form-control" id="subtitle" name="subtitle" value="{{ feed.subtitle }}" required>
-            </div>
-            <div class="mb-3">
-                <label for="generator" class="form-label">Generator</label>
-                <input type="text" class="form-control" id="generator" name="generator" value="{{ feed.generator }}" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Update Feed</button>
-        </form>
-        
-        <a href="/" class="btn btn-secondary mt-3">Back to Feeds</a>
+{% extends 'base.html' %}
+{% block title %}Edit feed · RSS Feed Reader{% endblock %}
+{% block content %}
+<h1 class="mb-4">Edit feed</h1>
+<form method="post" action="{{ url_for('web.edit_feed', feed_id=feed.id) }}" data-busy-label="Saving…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="mb-3">
+        <label for="title" class="form-label">Title (required)</label>
+        <input type="text" class="form-control{% if title_error %} is-invalid{% endif %}" id="title" name="title" value="{{ feed.title }}" required{% if title_error %} aria-invalid="true" aria-describedby="title-error"{% endif %}>
+        {% if title_error %}<p id="title-error" class="invalid-feedback">Enter a title for this feed.</p>{% endif %}
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <div class="mb-3">
+        <label for="subtitle" class="form-label">Subtitle (optional)</label>
+        <input type="text" class="form-control" id="subtitle" name="subtitle" value="{{ feed.subtitle }}">
+    </div>
+    <div class="mb-3">
+        <label for="generator" class="form-label">Generator (optional)</label>
+        <input type="text" class="form-control" id="generator" name="generator" value="{{ feed.generator }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a class="btn btn-link" href="{{ url_for('web.home') }}">Cancel</a>
+    <p class="small mt-2" role="status" data-submit-status></p>
+</form>
+{% endblock %}

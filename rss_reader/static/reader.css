@@ -1,0 +1,6 @@
+body { overflow-wrap: anywhere; }
+.feed-url { flex-basis: 16rem; width: auto; min-width: 0; }
+a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 3px solid #212529;
+    outline-offset: 3px;
+}

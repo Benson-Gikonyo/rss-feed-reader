@@ -132,3 +132,31 @@ Tests include small RSS/Atom fixtures, mocked HTTP adapters, concurrent SQLite
 writers, non-destructive initialization, atomic rollback, safe URL handling, redirect
 limits, timeouts, size limits, conditional requests, and web/terminal integration.
 They make no live network requests.
+
+## Forms, pages, and readiness
+
+All state-changing browser forms require a random CSRF token bound to Flask's
+signed session cookie. Tokens are checked on the server; missing, incorrect, or
+other-session tokens return HTTP 400 before the action runs. Protection remains
+enabled in tests. Session cookies use SameSite=Lax, and HTML responses use
+`Cache-Control: no-store` so shared caches do not retain forms with session tokens.
+The approach follows [OWASP's CSRF prevention guidance](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
+
+Article pages fetch five rows at a time with SQLite `LIMIT`/`OFFSET`, ordered by
+publication date and then article ID, both descending. Invalid page numbers
+return 400; pages beyond the available results and missing feed IDs return 404.
+An empty feed still has a valid first page with an explanatory message.
+
+Templates share one base layout and one flash-message partial. Deletion opens a
+confirmation page before the protected POST; viewing the confirmation does not
+remove data. Submit buttons show progress and prevent repeat clicks while a
+request is pending, and are restored when navigating back. Forms still work
+without JavaScript. Edit validation and save failures retain entered values,
+and optional subtitle/generator fields can be left blank.
+
+`GET /healthz` returns `{"status":"ok"}` with HTTP 200 when the configured
+on-disk database can be read and has the expected schema version and required
+columns. It returns `{"status":"unavailable"}` with HTTP 503 otherwise. The
+check opens SQLite read-only and never initializes a missing database. It checks
+readiness, not remote feed availability, database write access, or full integrity.
+It is intended for the application's on-disk SQLite setup, not `:memory:` databases.

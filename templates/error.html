@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}{{ status }} · RSS Feed Reader{% endblock %}
+{% block content %}
+<h1>{{ status }} — Unable to complete your request</h1>
+<p role="alert">{{ message }}</p>
+<a class="btn btn-primary" href="{{ url_for('web.home') }}">Back to feeds</a>
+{% endblock %}

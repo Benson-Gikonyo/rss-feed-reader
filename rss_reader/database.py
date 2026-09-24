@@ -1,5 +1,6 @@
 """Application-scoped SQLite connections and transactional persistence."""
 import sqlite3
+from contextlib import closing
 from dataclasses import asdict
 from pathlib import Path
 
@@ -155,5 +156,28 @@ def delete_feed(feed_id):
 def update_metadata(feed_id, title, subtitle, generator):
     db = get_db()
     with db:
-        db.execute("""UPDATE feeds SET title=?, subtitle=?, generator=?,
-            updated_at=CURRENT_TIMESTAMP WHERE id=?""", (title, subtitle, generator, feed_id))
+        return db.execute("""UPDATE feeds SET title=?, subtitle=?, generator=?,
+            updated_at=CURRENT_TIMESTAMP WHERE id=?""", (title, subtitle, generator, feed_id)).rowcount > 0
+
+
+def count_articles(feed_id):
+    return get_db().execute("SELECT COUNT(*) FROM articles WHERE feed_id=?", (feed_id,)).fetchone()[0]
+
+
+def get_article_page(feed_id, page, per_page=5):
+    return [dict(row) for row in get_db().execute(
+        """SELECT * FROM articles WHERE feed_id=?
+        ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?""",
+        (feed_id, per_page, (page - 1) * per_page),
+    )]
+
+
+def database_ready():
+    """Check a configured on-disk database without creating or modifying it."""
+    uri = Path(current_app.config["DATABASE"]).resolve().as_uri() + "?mode=ro"
+    with closing(sqlite3.connect(uri, uri=True, timeout=1)) as connection:
+        if connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+            return False
+        connection.execute("SELECT id, source_url, site_url, title, subtitle, generator, created_at, updated_at, last_fetched_at, etag, last_modified, fetch_url FROM feeds LIMIT 0")
+        connection.execute("SELECT id, feed_id, guid, url, title, published_at, author, summary FROM articles LIMIT 0")
+        return True

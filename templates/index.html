@@ -1,94 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RSS Reader</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="container mt-4">
-        <h1 class="text-center mb-4">RSS Feed Reader</h1>
-        
-        <!-- submission form -->
-        <form action="{{ url_for('web.add_feed') }}" method="post" class="mb-4">
-            <div class="input-group">
-                <input type="url" name="feed_url" class="form-control" placeholder="Enter rss feed url" required>
-                <button type="submit" class="btn btn-primary">Add feed</button>
-            </div>
-        </form>
-
-
-
-        <!-- display flash messages -->
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="alert alert-info">
-                    {{ messages[0] }}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <!-- flash messages with category -->
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-        <div class="container mt-4">
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        </div>
-            {% endif %}
-        {% endwith %}
-
-        <form method="GET" action="{{ url_for('web.home') }}" class="mb-4">
-            <div class="input-group">
-                <input type="text" name="query" class="form-control" placeholder="Search feeds..." value="{{ request.args.get('query', '') }}">
-                <button class="btn btn-primary" type="submit">Search</button>
-            </div>
-        </form>
-
-        <!-- list feeds -->
-        <div class="list-group">
-            {% if feeds %}
-                {% for feed in feeds %}
-
-                    <a href="{{ url_for('web.view_feed', feed_id=feed.id) }}" class="list-group-item list-group-item-action">
-                        <h5 class="mb-1">{{feed.title}}</h5>
-                        <small>{{ feed.subtitle }}</small>
-                    </a>
-
-                    <!-- delete button -->
-                    <form action="{{ url_for('web.delete_rss_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
-                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                    </form>
-
-                    <!-- refresh button -->
-                    <form action="{{ url_for('web.refresh_feed', feed_id=feed.id) }}" method="POST" class="d-inline-block">
-                        <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
-                    </form>
-
-                    <a href="{{ url_for('web.edit_feed', feed_id=feed.id) }}" class="btn btn-warning btn-sm">Edit</a>
-
-                {% endfor %}
-                {% else %}
-                    <div class="alert alert-warning text-center" role="alert">
-                        No feeds found matching your search.
-                    </div>
-
-            {% endif %}
-        </div>
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="mb-4">Your feeds</h1>
+<form action="{{ url_for('web.add_feed') }}" method="post" class="mb-4" data-busy-label="Adding…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="feed-url" class="form-label">RSS or Atom feed URL</label>
+    <div class="d-flex flex-wrap gap-2">
+        <input type="url" class="form-control flex-grow-1 feed-url" id="feed-url" name="feed_url" value="{{ feed_url or '' }}" placeholder="https://example.com/rss" required>
+        <button type="submit" class="btn btn-primary">Add feed</button>
     </div>
-
-    <!-- Bootstrap JS (optional, needed for some interactive features) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-
-</body>
-</html>
+    <p class="small mt-2 mb-0" role="status" data-submit-status></p>
+</form>
+<form method="get" action="{{ url_for('web.home') }}" class="mb-4" role="search">
+    <label for="query" class="form-label">Search your feeds</label>
+    <div class="d-flex flex-wrap gap-2">
+        <input type="search" class="form-control flex-grow-1 feed-url" id="query" name="query" value="{{ request.args.get('query', '') }}">
+        <button type="submit" class="btn btn-outline-primary">Search</button>
+        {% if query %}<a class="btn btn-link" href="{{ url_for('web.home') }}">Clear search</a>{% endif %}
+    </div>
+</form>
+{% if feeds %}
+<ul class="list-group">
+    {% for feed in feeds %}
+    <li class="list-group-item py-3">
+        <h2 class="h5"><a href="{{ url_for('web.view_feed', feed_id=feed.id) }}">{{ feed.title }}</a></h2>
+        {% if feed.subtitle %}<p class="text-body-secondary">{{ feed.subtitle }}</p>{% endif %}
+        <div class="d-flex flex-wrap align-items-start gap-2">
+            <form action="{{ url_for('web.refresh_feed', feed_id=feed.id) }}" method="post" data-busy-label="Refreshing…">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-primary btn-sm" aria-label="Refresh {{ feed.title }}">Refresh</button>
+                <p class="small mt-1 mb-0" role="status" data-submit-status></p>
+            </form>
+            <a href="{{ url_for('web.edit_feed', feed_id=feed.id) }}" class="btn btn-outline-secondary btn-sm" aria-label="Edit {{ feed.title }}">Edit</a>
+            <a href="{{ url_for('web.delete_rss_feed', feed_id=feed.id) }}" class="btn btn-outline-danger btn-sm" aria-label="Delete {{ feed.title }}">Delete</a>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% elif query %}
+<p role="status">No feeds match your search. Try another title or clear the search.</p>
+{% else %}
+<p role="status">No feeds yet. Add an RSS or Atom URL above to start reading.</p>
+{% endif %}
+{% endblock %}

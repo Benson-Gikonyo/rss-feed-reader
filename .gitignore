@@ -20,6 +20,7 @@ instance/
 *.sqlite3
 savedfeeds.json
 
+
 # Editors and OS
 .vscode/
 .idea/

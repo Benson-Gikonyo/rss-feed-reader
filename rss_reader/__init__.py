@@ -18,6 +18,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     )
     app.config.from_mapping(
         SECRET_KEY=os.getenv("SECRET_KEY"),
+        SESSION_COOKIE_SAMESITE="Lax",
         DATABASE=os.getenv("DATABASE_PATH", str(Path(app.instance_path) / "rss_feeds.db")),
         FETCH_CONNECT_TIMEOUT=float(os.getenv("FETCH_CONNECT_TIMEOUT", "3")),
         FETCH_READ_TIMEOUT=float(os.getenv("FETCH_READ_TIMEOUT", "10")),
@@ -47,6 +48,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     from .database import init_app
 
     init_app(app)
+
+    from .csrf import init_app as init_csrf
+
+    init_csrf(app)
 
     from .routes import web
 
